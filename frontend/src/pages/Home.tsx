@@ -28,6 +28,7 @@ const Home = () => {
         }
       })
       .catch((err:Error) => {
+        console.log(err);
         navigate("/signup");
       })
       .finally(() => setLoading(false));

@@ -27,6 +27,7 @@ export const Blog = () => {
             }
           })
           .catch((err:Error) => {
+            console.log(err);
             navigate("/signin");
           });
     

@@ -29,6 +29,7 @@ const Blogs = () => {
             }
           })
           .catch((err:Error) => {
+            console.log(err);
             navigate("/signin");
           });
     
