@@ -1,8 +1,9 @@
 import {Hono} from "hono";
 import {PrismaClient} from "@prisma/client/edge";
 import { withAccelerate } from "@prisma/extension-accelerate";
-import { sign } from "hono/jwt";
-import { signupInput, singinInput } from "@jaydeep203/medium-blog-common";
+import { sign, verify } from "hono/jwt";
+import { signinInput, signupInput} from "@jaydeep203/medium-blog-common";
+// import {z} from "zod";
 
 
 export const userRouter = new Hono<{
@@ -12,16 +13,48 @@ export const userRouter = new Hono<{
     }
 }>();
 
+
+userRouter.get("/me", async(c) => {
+
+    const authHeader = await c.req.header("authorization") || "";
+    if(!authHeader || !authHeader.startsWith("Bearer ")){
+      c.status(400);
+      return c.json({
+        msg:"You are not authenticated."
+      });
+    }
+
+    const token = authHeader.split(" ")[1];
+
+    const response = await verify(token, c.env.JWT_SECRET);
+    if(response && response.id){
+        c.status(200);
+        return c.json({
+            id:response.id
+        });
+    } 
+    else {
+      c.status(403);
+      return c.json({error: "Unauthorized."});
+    }
+})
+
 userRouter.post('/signup', async(c) => {
     const prisma = new PrismaClient({
       datasourceUrl: c.env.DATABASE_URL,
     }).$extends(withAccelerate());
   
-  
-    const body = await c.req.json();
 
-    const {success} = signupInput.safeParse(body);
-    if(!success){
+    const {name, username, password} = await c.req.json();
+
+    const res = signupInput.safeParse({
+      name,
+      username,
+      password
+    });
+
+
+    if(!res.success){
       c.status(411);
       return c.json({
         message: "Inputs not correctl"
@@ -31,9 +64,9 @@ userRouter.post('/signup', async(c) => {
     try{
       const user = await prisma.user.create({
         data:{
-          email:body.email,
-          password: body.password,
-          name: body.name
+          email:username,
+          password: password,
+          name: name
         }
       });
   
@@ -60,10 +93,14 @@ userRouter.post('/signup', async(c) => {
     }).$extends(withAccelerate());
   
   
-    const body = await c.req.json();
+    const {username, password} = await c.req.json();
 
-    const {success} = singinInput.safeParse(body);
-    if(!success){
+    const res = signinInput.safeParse({
+      username,
+      password
+    });
+
+    if(!res.success){
       c.status(411);
       return c.json({
         message: "Inputs not correctl"
@@ -72,8 +109,8 @@ userRouter.post('/signup', async(c) => {
   
     const user = await prisma.user.findUnique({
       where:{
-        email:body.email,
-        password:body.password
+        email:username,
+        password:password
       }
     });
   
